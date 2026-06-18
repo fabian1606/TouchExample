@@ -1,0 +1,15 @@
+# PlatformIO
+.pio/
+firmware/**/.pio/
+
+# Node / Nuxt
+node_modules/
+web/node_modules/
+web/.nuxt/
+web/.output/
+web/dist/
+.DS_Store
+
+# Build output
+dist/
+*.log

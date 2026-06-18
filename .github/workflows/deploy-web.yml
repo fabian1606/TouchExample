@@ -1,0 +1,57 @@
+name: Deploy Website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - ".github/workflows/deploy-web.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Nur ein Deploy gleichzeitig.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install deps
+        working-directory: web
+        run: bun install
+
+      - name: Generate static site
+        working-directory: web
+        env:
+          # Bei Projekt-Pages (user.github.io/<repo>/) wird der Repo-Name als Pfad gebraucht.
+          NUXT_APP_BASE_URL: "/${{ github.event.repository.name }}/"
+          # firmware-index.json liegt in web/public/ und wird von der Firmware-CI committed.
+          # Kein Env-Var noetig - Nuxt serviert /firmware-index.json von public/.
+          NUXT_PUBLIC_REPO_URL: "${{ github.server_url }}/${{ github.repository }}"
+        run: bun run generate
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/.output/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

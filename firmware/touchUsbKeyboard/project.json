@@ -1,0 +1,9 @@
+{
+  "name": "Touch -> Tastatur (ESP32-S3)",
+  "slug": "touchUsbKeyboard",
+  "env": "esp32-s3",
+  "chipFamily": "ESP32-S3",
+  "mode": "hid",
+  "description": "Touch-Pad druecken sendet einen echten Tastendruck. Der ESP32-S3 erscheint am Rechner als USB-Tastatur.",
+  "exampleFolder": "usbKeyboard"
+}

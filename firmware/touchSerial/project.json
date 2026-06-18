@@ -1,0 +1,9 @@
+{
+  "name": "Touch -> Serial JSON (ESP32)",
+  "slug": "touchSerial",
+  "env": "esp32dev",
+  "chipFamily": "ESP32",
+  "mode": "serial",
+  "description": "Touch-Pad druecken sendet ein JSON-Event ueber Serial. Nutze die Bridge-Seite, um daraus Tastendruecke zu machen.",
+  "exampleFolder": "serial"
+}

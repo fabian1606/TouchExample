@@ -1,0 +1,110 @@
+name: Build Firmware
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "firmware/**"
+      - "lib/**"
+      - "scripts/**"
+      - ".github/workflows/build-firmware.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write # noetig, um Release-Assets zu schreiben
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio esptool
+
+      - name: Build all firmware projects
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for dir in firmware/*/; do
+            [ -f "$dir/project.json" ] || continue
+            slug=$(node -p "require('./$dir/project.json').slug")
+            env=$(node -p "require('./$dir/project.json').env")
+            chip=$(node -p "require('./$dir/project.json').chipFamily")
+
+            echo "::group::Build $slug ($env)"
+            pio run -d "$dir" -e "$env"
+
+            build="$dir/.pio/build/$env"
+            boot_app0=$(find ~/.platformio/packages -name boot_app0.bin | head -n1)
+
+            # esptool-Chipname + Bootloader-Offset je Chip.
+            case "$chip" in
+              "ESP32")    espchip=esp32;   boot_off=0x1000 ;;
+              "ESP32-S2") espchip=esp32s2; boot_off=0x1000 ;;
+              "ESP32-S3") espchip=esp32s3; boot_off=0x0 ;;
+              "ESP32-C3") espchip=esp32c3; boot_off=0x0 ;;
+              *) echo "Unbekannte chipFamily: $chip"; exit 1 ;;
+            esac
+
+            esptool --chip "$espchip" merge-bin -o "dist/$slug.factory.bin" \
+              "$boot_off" "$build/bootloader.bin" \
+              0x8000 "$build/partitions.bin" \
+              0xe000 "$boot_app0" \
+              0x10000 "$build/firmware.bin"
+            echo "::endgroup::"
+          done
+
+      - name: Package Arduino library as ZIP
+        run: |
+          # Oberster Ordner muss "Touch/" sein, damit Arduino-IDE-Import klappt.
+          (cd lib && zip -r "$GITHUB_WORKSPACE/dist/Touch.zip" Touch \
+            -x "*/.DS_Store")
+
+      - name: Generate manifests + index.json
+        run: |
+          BASE_URL="${{ github.server_url }}/${{ github.repository }}/releases/download/firmware-latest"
+          node scripts/make-manifests.mjs "$BASE_URL"
+
+      - name: Copy assets into web/public/ (kein Cross-Origin-Problem)
+        run: |
+          # firmware-index.json: von der Website ohne CORS-Probleme abrufbar.
+          cp dist/index.json web/public/firmware-index.json
+
+          # .ino-Beispieldateien: direkt als Download auf der Projekt-Seite.
+          mkdir -p web/public/code
+          for dir in firmware/*/; do
+            [ -f "$dir/project.json" ] || continue
+            example=$(node -p "require('./$dir/project.json').exampleFolder || require('./$dir/project.json').slug")
+            src="lib/Touch/examples/$example/$example.ino"
+            [ -f "$src" ] && cp "$src" "web/public/code/$example.ino"
+          done
+
+      - name: Commit updated web/public/ assets
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add web/public/firmware-index.json web/public/code/
+          git diff --cached --quiet && echo "Keine Aenderungen" && exit 0
+          git commit -m "ci: update firmware-index.json + code downloads [skip ci]"
+          git push
+
+      - name: Publish to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: firmware-latest
+          name: Firmware (latest)
+          body: "Automatisch gebaute Firmware + Arduino-Library. Aktualisiert bei jedem Push auf main."
+          files: |
+            dist/*.factory.bin
+            dist/*.manifest.json
+            dist/index.json
+            dist/Touch.zip
