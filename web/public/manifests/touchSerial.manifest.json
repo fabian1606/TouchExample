@@ -1,0 +1,15 @@
+{
+  "name": "Touch -> Serial JSON (ESP32)",
+  "version": "1.0.0",
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        {
+          "path": "https://github.com/fabian1606/TouchExample/releases/download/firmware-latest/touchSerial.factory.bin",
+          "offset": 0
+        }
+      ]
+    }
+  ]
+}

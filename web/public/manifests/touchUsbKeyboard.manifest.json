@@ -1,0 +1,15 @@
+{
+  "name": "Touch -> Tastatur (ESP32-S3)",
+  "version": "1.0.0",
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        {
+          "path": "https://github.com/fabian1606/TouchExample/releases/download/firmware-latest/touchUsbKeyboard.factory.bin",
+          "offset": 0
+        }
+      ]
+    }
+  ]
+}
