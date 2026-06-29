@@ -3,23 +3,21 @@
 // und eine globale index.json. Erwartet, dass die .factory.bin bereits in
 // dist/ liegen (vom CI-Build per esptool merge_bin).
 //
-// Aufruf: node scripts/make-manifests.mjs <BINARY_BASE_URL> [MANIFEST_BASE_URL]
-//   BINARY_BASE_URL  = URL der Release-Assets (Binaries), z.B.
-//                      https://github.com/<org>/<repo>/releases/download/firmware-latest
-//   MANIFEST_BASE_URL = URL, unter der die Manifest-JSONs serviert werden.
-//                       Faellt auf BINARY_BASE_URL zurueck wenn nicht angegeben.
-//                       Idealerweise gleiche Origin wie die Website (kein CORS).
+// Aufruf: node scripts/make-manifests.mjs <BINARY_BASE_URL>
+//   BINARY_BASE_URL = URL der Release-Assets (Binaries), z.B.
+//                     https://github.com/<org>/<repo>/releases/download/firmware-latest
+//
+// Die Manifest-JSONs selbst werden ueber die Website (gleiche Origin) serviert;
+// der index.json speichert dafuer einen relativen Pfad (manifests/<slug>.manifest.json).
 
 import { readdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
-const BINARY_BASE_URL = (process.argv[2] || "").replace(/\/$/, "");
-if (!BINARY_BASE_URL) {
-  console.error("Usage: node scripts/make-manifests.mjs <BINARY_BASE_URL> [MANIFEST_BASE_URL]");
+const BASE_URL = (process.argv[2] || "").replace(/\/$/, "");
+if (!BASE_URL) {
+  console.error("Usage: node scripts/make-manifests.mjs <BINARY_BASE_URL>");
   process.exit(1);
 }
-const MANIFEST_BASE_URL = (process.argv[3] || BINARY_BASE_URL).replace(/\/$/, "");
-const BASE_URL = BINARY_BASE_URL;
 
 const ROOT = process.cwd();
 const FIRMWARE_DIR = join(ROOT, "firmware");
@@ -76,7 +74,9 @@ for (const dir of projects) {
     chipFamily: meta.chipFamily,
     mode: meta.mode,
     description: meta.description,
-    manifest: `${MANIFEST_BASE_URL}/${manifestName}`,
+    // Relativer Pfad (ohne Domain): die Website loest ihn gegen ihre baseURL
+    // auf -> funktioniert lokal (/manifests/...) und deployed (/<repo>/manifests/...).
+    manifest: `manifests/${manifestName}`,
   });
   console.log(`+ ${slug} -> ${manifestName}`);
 }

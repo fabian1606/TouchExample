@@ -9,7 +9,7 @@
       "chipFamily": "ESP32",
       "mode": "serial",
       "description": "Touch-Pad druecken sendet ein JSON-Event ueber Serial. Nutze die Bridge-Seite, um daraus Tastendruecke zu machen.",
-      "manifest": "https://fabian1606.github.io/TouchExample/manifests/touchSerial.manifest.json"
+      "manifest": "manifests/touchSerial.manifest.json"
     },
     {
       "name": "Touch -> Tastatur (ESP32-S3)",
@@ -17,7 +17,7 @@
       "chipFamily": "ESP32-S3",
       "mode": "hid",
       "description": "Touch-Pad druecken sendet einen echten Tastendruck. Der ESP32-S3 erscheint am Rechner als USB-Tastatur.",
-      "manifest": "https://fabian1606.github.io/TouchExample/manifests/touchUsbKeyboard.manifest.json"
+      "manifest": "manifests/touchUsbKeyboard.manifest.json"
     }
   ]
 }
