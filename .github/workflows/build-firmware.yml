@@ -71,13 +71,18 @@ jobs:
 
       - name: Generate manifests + index.json
         run: |
-          BASE_URL="${{ github.server_url }}/${{ github.repository }}/releases/download/firmware-latest"
-          node scripts/make-manifests.mjs "$BASE_URL"
+          BINARY_URL="${{ github.server_url }}/${{ github.repository }}/releases/download/firmware-latest"
+          MANIFEST_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/manifests"
+          node scripts/make-manifests.mjs "$BINARY_URL" "$MANIFEST_URL"
 
       - name: Copy assets into web/public/ (kein Cross-Origin-Problem)
         run: |
           # firmware-index.json: von der Website ohne CORS-Probleme abrufbar.
           cp dist/index.json web/public/firmware-index.json
+
+          # Manifest-JSONs: gleiche Origin wie Website -> kein CORS-Problem beim Laden.
+          mkdir -p web/public/manifests
+          cp dist/*.manifest.json web/public/manifests/
 
           # .ino-Beispieldateien: direkt als Download auf der Projekt-Seite.
           mkdir -p web/public/code
@@ -92,9 +97,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add web/public/firmware-index.json web/public/code/
+          git add web/public/firmware-index.json web/public/manifests/ web/public/code/
           git diff --cached --quiet && echo "Keine Aenderungen" && exit 0
-          git commit -m "ci: update firmware-index.json + code downloads [skip ci]"
+          git commit -m "ci: update firmware-index.json + manifests + code downloads [skip ci]"
           git push
 
       - name: Publish to release
