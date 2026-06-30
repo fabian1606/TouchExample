@@ -85,20 +85,28 @@ jobs:
           mkdir -p web/public/manifests
           cp dist/*.manifest.json web/public/manifests/
 
-          # .ino-Beispieldateien: direkt als Download auf der Projekt-Seite.
+          # Firmware-Binaries: gleiche Origin wie Website. Release-Assets haben kein
+          # CORS, daher liefert die Website die .factory.bin selbst aus.
+          mkdir -p web/public/firmware
+          cp dist/*.factory.bin web/public/firmware/
+
+          # .ino-Beispieldateien: alle Dateien pro Example-Ordner in Unterordner kopieren.
           mkdir -p web/public/code
           for dir in firmware/*/; do
             [ -f "$dir/project.json" ] || continue
             example=$(node -p "require('./$dir/project.json').exampleFolder || require('./$dir/project.json').slug")
-            src="lib/Touch/examples/$example/$example.ino"
-            [ -f "$src" ] && cp "$src" "web/public/code/$example.ino"
+            src_dir="lib/Touch/examples/$example"
+            if [ -d "$src_dir" ]; then
+              mkdir -p "web/public/code/$example"
+              cp "$src_dir"/*.ino "web/public/code/$example/"
+            fi
           done
 
       - name: Commit updated web/public/ assets
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add web/public/firmware-index.json web/public/manifests/ web/public/code/
+          git add web/public/firmware-index.json web/public/manifests/ web/public/firmware/ web/public/code/
           git diff --cached --quiet && echo "Keine Aenderungen" && exit 0
           git commit -m "ci: update firmware-index.json + manifests + code downloads [skip ci]"
           git push

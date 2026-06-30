@@ -11,7 +11,7 @@
 // der index.json speichert dafuer einen relativen Pfad (manifests/<slug>.manifest.json).
 
 import { readdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, extname } from "node:path";
 
 const BASE_URL = (process.argv[2] || "").replace(/\/$/, "");
 if (!BASE_URL) {
@@ -55,18 +55,27 @@ for (const dir of projects) {
   }
 
   // esp-web-tools-Manifest pro Projekt.
+  // Binary-Pfad relativ zum Manifest (liegt in web/public/manifests/), die
+  // .bin in web/public/firmware/. esp-web-tools loest das gegen die Manifest-URL
+  // auf -> gleiche Origin wie die Website -> kein CORS (Release-Assets haben keins).
   const manifest = {
     name: meta.name,
     version: libVersion,
     builds: [
       {
         chipFamily: meta.chipFamily,
-        parts: [{ path: `${BASE_URL}/${binName}`, offset: 0 }],
+        parts: [{ path: `../firmware/${binName}`, offset: 0 }],
       },
     ],
   };
   const manifestName = `${slug}.manifest.json`;
   writeFileSync(join(DIST, manifestName), JSON.stringify(manifest, null, 2));
+
+  const exampleFolder = meta.exampleFolder || slug;
+  const exampleDir = join(ROOT, "lib/Touch/examples", exampleFolder);
+  const codeFiles = existsSync(exampleDir)
+    ? readdirSync(exampleDir).filter((f) => extname(f) === ".ino")
+    : [];
 
   index.projects.push({
     name: meta.name,
@@ -74,11 +83,13 @@ for (const dir of projects) {
     chipFamily: meta.chipFamily,
     mode: meta.mode,
     description: meta.description,
+    exampleFolder,
+    codeFiles,
     // Relativer Pfad (ohne Domain): die Website loest ihn gegen ihre baseURL
     // auf -> funktioniert lokal (/manifests/...) und deployed (/<repo>/manifests/...).
     manifest: `manifests/${manifestName}`,
   });
-  console.log(`+ ${slug} -> ${manifestName}`);
+  console.log(`+ ${slug} -> ${manifestName} (${codeFiles.length} code files)`);
 }
 
 writeFileSync(join(DIST, "index.json"), JSON.stringify(index, null, 2));

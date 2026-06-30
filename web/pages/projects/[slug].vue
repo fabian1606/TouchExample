@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 
 const route = useRoute();
 const slug = route.params.slug as string;
@@ -13,6 +13,7 @@ type Project = {
   description: string;
   manifest: string;
   exampleFolder?: string;
+  codeFiles?: string[];
 };
 type Index = {
   libraryZip: string;
@@ -24,10 +25,16 @@ const project = ref<Project | null>(null);
 const index = ref<Index | null>(null);
 const fetchError = ref<string | null>(null);
 
-// Nuxt Content fuer die Doku-Seite dieses Projekts (optional).
-const { data: doc } = await useAsyncData(`project-doc-${slug}`, () =>
-  queryContent(`/projects/${slug}`).findOne().catch(() => null)
-);
+// Nuxt Content normalisiert Pfade auf Kleinbuchstaben.
+const slugLower = slug.toLowerCase();
+const [{ data: doc }, { data: docConfig }] = await Promise.all([
+  useAsyncData(`project-doc-${slug}`, () =>
+    queryContent(`/projects/${slugLower}`).findOne().catch(() => null)
+  ),
+  useAsyncData(`project-doc-config-${slug}`, () =>
+    queryContent(`/projects/${slugLower}-config`).findOne().catch(() => null)
+  ),
+]);
 
 onMounted(async () => {
   try {
@@ -43,26 +50,60 @@ onMounted(async () => {
 const modeLabel = computed(() =>
   project.value?.mode === "hid" ? "USB-Tastatur" : "Serial JSON"
 );
+
+const exampleFolder = computed(() => project.value?.exampleFolder ?? slug);
+const codeFiles = computed(() => project.value?.codeFiles ?? []);
+
 const codeDownloadUrl = computed(() => {
-  const folder = project.value?.exampleFolder ?? slug;
   const repoUrl = (config.public.repoUrl as string) || "";
-  if (!repoUrl) return null;
-  return `${repoUrl}/raw/main/lib/Touch/examples/${folder}/${folder}.ino`;
+  if (!repoUrl || !codeFiles.value.length) return null;
+  const mainFile = codeFiles.value[0];
+  return `${repoUrl}/raw/main/lib/Touch/examples/${exampleFolder.value}/${mainFile}`;
 });
 const codeLocalUrl = computed(() => {
-  const folder = project.value?.exampleFolder ?? slug;
-  return `/code/${folder}.ino`;
+  if (!codeFiles.value.length) return `/code/${exampleFolder.value}.ino`;
+  return `/code/${exampleFolder.value}/${codeFiles.value[0]}`;
 });
+
 const hasFirmware = computed(() => !!project.value?.manifest && !fetchError.value);
 
-// Manifest-Pfad ist relativ (manifests/<slug>.manifest.json) und wird gegen die
-// baseURL aufgeloest -> gleiche Origin wie die Website, kein CORS-Problem.
-// Funktioniert lokal (baseURL "/") und deployed (baseURL "/<repo>/").
 const manifestUrl = computed(() => {
   const m = project.value?.manifest ?? "";
-  if (/^https?:\/\//.test(m)) return m; // schon absolut -> unveraendert lassen
+  if (/^https?:\/\//.test(m)) return m;
   const base = (config.app.baseURL as string) || "/";
   return `${base.replace(/\/$/, "")}/${m.replace(/^\//, "")}`;
+});
+
+// Aktive Doku-Seite (Anleitung / Konfiguration)
+const activeDocTab = ref<"anleitung" | "konfiguration">("anleitung");
+
+// Code-Viewer
+const selectedFile = ref<string>("");
+const codeContent = ref<string>("");
+const codeLoading = ref(false);
+
+watch(
+  () => project.value,
+  (p) => {
+    if (p?.codeFiles?.length) {
+      selectedFile.value = p.codeFiles[0];
+    }
+  }
+);
+
+watch(selectedFile, async (file) => {
+  if (!file) return;
+  codeLoading.value = true;
+  codeContent.value = "";
+  try {
+    const res = await fetch(`/code/${exampleFolder.value}/${file}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    codeContent.value = await res.text();
+  } catch {
+    codeContent.value = "// Datei konnte nicht geladen werden.";
+  } finally {
+    codeLoading.value = false;
+  }
 });
 </script>
 
@@ -119,9 +160,48 @@ const manifestUrl = computed(() => {
       </div>
     </div>
 
+    <!-- Arduino Code-Viewer -->
+    <div v-if="codeFiles.length" style="margin-top:3rem;padding-top:2rem;border-top:1px solid var(--border)">
+      <h2 style="margin-bottom:1rem;font-size:1.1rem">Arduino Code</h2>
+
+      <!-- Tab-Leiste (nur bei mehreren Dateien) -->
+      <div v-if="codeFiles.length > 1" class="code-tabs">
+        <button
+          v-for="file in codeFiles"
+          :key="file"
+          class="code-tab"
+          :class="{ active: selectedFile === file }"
+          @click="selectedFile = file"
+        >
+          {{ file }}
+        </button>
+      </div>
+      <div v-else class="code-filename">{{ codeFiles[0] }}</div>
+
+      <pre class="code-block"><code>{{ codeLoading ? "Laden…" : codeContent }}</code></pre>
+    </div>
+
     <!-- Doku aus Nuxt Content -->
-    <div v-if="doc" class="prose" style="margin-top:3rem;padding-top:2rem;border-top:1px solid var(--border)">
-      <ContentRenderer :value="doc" />
+    <div v-if="doc || docConfig" style="margin-top:3rem;padding-top:2rem;border-top:1px solid var(--border)">
+
+      <!-- Tab-Leiste Anleitung / Konfiguration -->
+      <div v-if="docConfig" class="doc-tabs">
+        <button
+          class="doc-tab"
+          :class="{ active: activeDocTab === 'anleitung' }"
+          @click="activeDocTab = 'anleitung'"
+        >Anleitung</button>
+        <button
+          class="doc-tab"
+          :class="{ active: activeDocTab === 'konfiguration' }"
+          @click="activeDocTab = 'konfiguration'"
+        >Konfiguration</button>
+      </div>
+
+      <div class="prose">
+        <ContentRenderer v-if="activeDocTab === 'anleitung' && doc" :value="doc" />
+        <ContentRenderer v-if="activeDocTab === 'konfiguration' && docConfig" :value="docConfig" />
+      </div>
     </div>
   </div>
 </template>
@@ -153,5 +233,77 @@ const manifestUrl = computed(() => {
   display: flex; align-items: center; justify-content: center;
   font-size: 0.85rem; color: var(--muted);
   background: linear-gradient(135deg, #141720 0%, #1e2433 100%);
+}
+
+/* Code-Viewer */
+.code-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border);
+}
+.code-tab {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8rem;
+  font-family: var(--font-mono, monospace);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+.code-tab:hover { color: var(--fg); }
+.code-tab.active {
+  color: var(--fg);
+  border-bottom-color: var(--accent, #7aa2f7);
+}
+.code-filename {
+  font-size: 0.8rem;
+  font-family: var(--font-mono, monospace);
+  color: var(--muted);
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+}
+.code-block {
+  background: #0d1117;
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  padding: 1.25rem 1.5rem;
+  overflow-x: auto;
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: #e6edf3;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  white-space: pre;
+}
+
+/* Doku-Tabs */
+.doc-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2rem;
+}
+.doc-tab {
+  padding: 0.5rem 1.1rem;
+  font-size: 0.9rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+  font-weight: 500;
+}
+.doc-tab:hover { color: var(--fg); }
+.doc-tab.active {
+  color: var(--fg);
+  border-bottom-color: var(--accent, #7aa2f7);
 }
 </style>

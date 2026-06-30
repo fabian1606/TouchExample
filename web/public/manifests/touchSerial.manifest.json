@@ -6,7 +6,7 @@
       "chipFamily": "ESP32",
       "parts": [
         {
-          "path": "https://github.com/fabian1606/TouchExample/releases/download/firmware-latest/touchSerial.factory.bin",
+          "path": "../firmware/touchSerial.factory.bin",
           "offset": 0
         }
       ]

@@ -6,7 +6,7 @@
       "chipFamily": "ESP32-S3",
       "parts": [
         {
-          "path": "https://github.com/fabian1606/TouchExample/releases/download/firmware-latest/touchUsbKeyboard.factory.bin",
+          "path": "../firmware/touchUsbKeyboard.factory.bin",
           "offset": 0
         }
       ]
