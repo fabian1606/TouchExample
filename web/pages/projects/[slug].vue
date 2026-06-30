@@ -54,6 +54,16 @@ const codeLocalUrl = computed(() => {
   return `/code/${folder}.ino`;
 });
 const hasFirmware = computed(() => !!project.value?.manifest && !fetchError.value);
+
+// Manifest-Pfad ist relativ (manifests/<slug>.manifest.json) und wird gegen die
+// baseURL aufgeloest -> gleiche Origin wie die Website, kein CORS-Problem.
+// Funktioniert lokal (baseURL "/") und deployed (baseURL "/<repo>/").
+const manifestUrl = computed(() => {
+  const m = project.value?.manifest ?? "";
+  if (/^https?:\/\//.test(m)) return m; // schon absolut -> unveraendert lassen
+  const base = (config.app.baseURL as string) || "/";
+  return `${base.replace(/\/$/, "")}/${m.replace(/^\//, "")}`;
+});
 </script>
 
 <template>
@@ -85,7 +95,7 @@ const hasFirmware = computed(() => !!project.value?.manifest && !fetchError.valu
         <div style="display:flex;gap:0.6rem;flex-wrap:wrap">
           <!-- Flash -->
           <ClientOnly>
-            <FlashButton v-if="hasFirmware" :manifest="project!.manifest" />
+            <FlashButton v-if="hasFirmware" :manifest="manifestUrl" />
             <p v-else-if="fetchError" style="color:#e06c6c;font-size:0.875rem">
               Firmware nicht verfügbar: {{ fetchError }}
             </p>

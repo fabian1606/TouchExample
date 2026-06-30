@@ -71,9 +71,10 @@ jobs:
 
       - name: Generate manifests + index.json
         run: |
+          # Binaries liegen auf dem Release; Manifest-Pfade sind relativ
+          # (werden in der Website gegen die baseURL aufgeloest -> kein CORS).
           BINARY_URL="${{ github.server_url }}/${{ github.repository }}/releases/download/firmware-latest"
-          MANIFEST_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/manifests"
-          node scripts/make-manifests.mjs "$BINARY_URL" "$MANIFEST_URL"
+          node scripts/make-manifests.mjs "$BINARY_URL"
 
       - name: Copy assets into web/public/ (kein Cross-Origin-Problem)
         run: |
