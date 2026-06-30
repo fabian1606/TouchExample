@@ -3,9 +3,6 @@ export default defineNuxtConfig({
   compatibilityDate: "2025-01-01",
   modules: ["@nuxt/content"],
 
-  // Statisches Hosting auf GitHub Pages.
-  nitro: { preset: "github-pages" },
-
   // Bei Projekt-Pages (user.github.io/<repo>/) muss baseURL gesetzt sein.
   // Wird im Deploy-Workflow per NUXT_APP_BASE_URL gesetzt.
   app: {
