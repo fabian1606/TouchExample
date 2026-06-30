@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-29T13:13:11.173Z",
+  "generatedAt": "2026-06-30T09:02:22.858Z",
   "libraryZip": "https://github.com/fabian1606/TouchExample/releases/download/firmware-latest/Touch.zip",
   "libraryVersion": "1.0.0",
   "projects": [
@@ -10,7 +10,9 @@
       "mode": "serial",
       "description": "Touch-Pad druecken sendet ein JSON-Event ueber Serial. Nutze die Bridge-Seite, um daraus Tastendruecke zu machen.",
       "exampleFolder": "serial",
-      "codeFiles": ["serial.ino"],
+      "codeFiles": [
+        "serial.ino"
+      ],
       "manifest": "manifests/touchSerial.manifest.json"
     },
     {
@@ -20,7 +22,9 @@
       "mode": "hid",
       "description": "Touch-Pad druecken sendet einen echten Tastendruck. Der ESP32-S3 erscheint am Rechner als USB-Tastatur.",
       "exampleFolder": "usbKeyboard",
-      "codeFiles": ["usbKeyboard.ino"],
+      "codeFiles": [
+        "usbKeyboard.ino"
+      ],
       "manifest": "manifests/touchUsbKeyboard.manifest.json"
     }
   ]
